@@ -2,9 +2,7 @@ name: Docker CI/CD
 
 on:
   push:
-    branches:
-      - main
-      - develop
+    branches: [main, develop]
 
 jobs:
   build-and-push:
@@ -31,7 +29,7 @@ jobs:
           push: true
           tags: mariamilkina/my-flask-app:latest
 
-          - name: Deploy to production
+      - name: Deploy to production
         if: github.ref == 'refs/heads/main'
         run: echo "Deploying to production server..."
 
