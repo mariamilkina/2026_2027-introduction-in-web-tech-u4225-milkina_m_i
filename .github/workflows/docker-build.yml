@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - develop
 
 jobs:
   build-and-push:
@@ -30,5 +31,10 @@ jobs:
           push: true
           tags: mariamilkina/my-flask-app:latest
 
-      - name: Deploy
-        run: echo "Deploying application..."
+          - name: Deploy to production
+        if: github.ref == 'refs/heads/main'
+        run: echo "Deploying to production server..."
+
+      - name: Deploy to development
+        if: github.ref == 'refs/heads/develop'
+        run: echo "Deploying to development server..."
