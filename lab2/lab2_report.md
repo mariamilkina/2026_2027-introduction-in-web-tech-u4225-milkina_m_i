@@ -14,79 +14,91 @@ Date of finished:
 
 **Цель работы**
 
-Настроить CI/CD-пайплайн с помощью GitHub Actions для автоматической сборки и публикации Docker-образа в Docker Hub. Дополнительно настроить различное поведение пайплайна для веток `main` и `develop`.
+Разобраться с настройкой CI/CD в GitHub Actions: сделать автоматическую сборку Docker-образа, его публикацию в Docker Hub и настроить разное поведение пайплайна для веток main и develop.
 
 **Ход работы**
 
 **1. Подготовка Docker Hub**
 
-Для публикации Docker-образа был создан публичный репозиторий `mariamilkina/my-flask-app` в Docker Hub.
+Сначала был создан публичный репозиторий в Docker Hub, куда в дальнейшем должен был загружаться собранный образ приложения.
+
+Репозиторий был создан с именем:
+
+```text
+mariamilkina/my-flask-app
+```
 
 ![Репозиторий в Docker Hub](images/01_dockerhub_repository.png)
 
 **2. Настройка секретов GitHub**
 
-Для авторизации GitHub Actions в Docker Hub в настройках GitHub-репозитория были добавлены Repository secrets:
+Для того чтобы GitHub Actions мог автоматически авторизоваться в Docker Hub, в настройках репозитория были добавлены два секрета:
 
-- `DOCKER_USERNAME` — имя пользователя Docker Hub;
-- `DOCKER_PASSWORD` — Personal Access Token Docker Hub с правами Read & Write.
+- DOCKER_USERNAME — логин от Docker Hub;
+- DOCKER_PASSWORD — Personal Access Token с правами Read & Write.
 
-Значения секретов хранятся в скрытом виде.
+Сам токен в репозитории не отображается и хранится в скрытом виде.
 
 ![GitHub Secrets](images/02_github_secrets.png)
 
-**3. Подготовка проекта**
+**3. Подготовка файлов для второй лабораторной**
 
-В папку `lab2` были добавлены файлы приложения из первой лабораторной работы:
+Во вторую лабораторную были добавлены основные файлы приложения из первой работы:
 
-- `Dockerfile`;
-- `app.py`;
-- `requirements.txt`.
+- Dockerfile;
+- app.py;
+- requirements.txt.
 
-Также были созданы файл отчёта `lab2_report.md` и папка `images` для скриншотов.
+Также были созданы файл отчёта и папка images для скриншотов.
 
 ![Файлы лабораторной работы](images/03_lab2_project_files.png)
 
 **4. Настройка GitHub Actions**
 
-В корне репозитория был создан файл:
+Для автоматизации сборки и публикации Docker-образа был создан workflow:
 
-`.github/workflows/docker-build.yml`
+```text
+.github/workflows/docker-build.yml
+```
 
-Workflow запускается при push в репозиторий и выполняет следующие действия:
+Пайплайн запускается после push в репозиторий и выполняет основные шаги:
 
-- checkout исходного кода;
-- настройку Docker Buildx;
-- авторизацию в Docker Hub;
-- сборку Docker-образа;
-- публикацию образа в Docker Hub;
-- выполнение этапа deploy.
+- получает код из репозитория;
+- настраивает Docker Buildx;
+- авторизуется в Docker Hub;
+- собирает Docker-образ;
+- отправляет образ в Docker Hub;
+- выполняет шаг deploy.
 
-Для сборки использовались файлы из папки `lab2`, а итоговый образ публиковался с именем:
+Для сборки использовались файлы из папки lab2.
 
-`mariamilkina/my-flask-app:latest`
+Готовый образ публиковался как:
 
-После добавления workflow пайплайн успешно запустился в GitHub Actions.
+```text
+mariamilkina/my-flask-app:latest
+```
+
+После добавления workflow GitHub Actions автоматически запустил пайплайн.
 
 ![Успешный запуск GitHub Actions](images/04_actions_success.png)
 
-Внутри job `build-and-push` успешно выполнились этапы checkout, настройки Buildx, авторизации, сборки и публикации образа.
+Внутри job build-and-push можно было увидеть выполнение всех основных этапов: получение кода, настройку Buildx, вход в Docker Hub, сборку и публикацию образа.
 
 ![Этапы выполнения пайплайна](images/05_actions_steps.png)
 
-**5. Проверка публикации образа**
+**5. Проверка Docker Hub**
 
-После завершения пайплайна в Docker Hub появился Docker-образ с тегом `latest`.
+После успешного завершения GitHub Actions в Docker Hub появился новый образ с тегом latest.
 
 ![Docker-образ с тегом latest](images/06_dockerhub_latest.png)
 
-Таким образом, сборка и публикация Docker-образа выполняются автоматически при изменениях в репозитории.
+Это означает, что теперь после изменений в репозитории Docker-образ может автоматически собираться и публиковаться без ручного выполнения этих команд.
 
-**Лабораторная работа со звёздочкой**
+**Дополнительная часть**
 
-Для дополнительной части была настроена работа CI/CD-пайплайна с двумя ветками: `main` и `develop`.
+Дополнительно была настроена работа пайплайна с двумя ветками: main и develop.
 
-Workflow запускается для обеих веток:
+Workflow был изменён так, чтобы запускаться для обеих веток:
 
 ```yaml
 on:
@@ -94,9 +106,9 @@ on:
     branches: [main, develop]
 ```
 
-**6. Deploy для ветки main**
+**6. Работа с веткой main**
 
-Для основной ветки был добавлен отдельный этап deploy:
+Для основной ветки был добавлен отдельный шаг deploy:
 
 ```yaml
 - name: Deploy to production
@@ -104,23 +116,23 @@ on:
   run: echo "Deploying to production server..."
 ```
 
-При запуске workflow из ветки `main` этап `Deploy to production` выполняется, а этап `Deploy to development` пропускается.
+При запуске пайплайна из ветки main выполняется deploy для production, а шаг для development пропускается.
 
 ![Deploy для ветки main](images/07_main_production_deploy.png)
 
 **7. Создание ветки develop**
 
-Для разработки была создана отдельная ветка `develop` на основе `main`.
+Для проверки второго варианта была создана отдельная ветка develop на основе main.
 
 ![Созданная ветка develop](images/08_develop_branch.png)
 
-После настройки workflow GitHub Actions успешно запускается как для `main`, так и для `develop`.
+После этого GitHub Actions успешно запускался уже для обеих веток.
 
 ![Запуски GitHub Actions для двух веток](images/09_actions_both_branches.png)
 
-**8. Deploy для ветки develop**
+**8. Работа с веткой develop**
 
-Для ветки разработки был добавлен отдельный этап:
+Для ветки develop был добавлен свой шаг deploy:
 
 ```yaml
 - name: Deploy to development
@@ -128,14 +140,16 @@ on:
   run: echo "Deploying to development server..."
 ```
 
-Для проверки в ветке `develop` был выполнен commit. После этого GitHub Actions автоматически запустил пайплайн.
+Для проверки в develop было внесено изменение и сделан commit.
 
-При запуске из `develop` этап `Deploy to production` был пропущен, а `Deploy to development` успешно выполнен.
+После push GitHub Actions снова запустился автоматически. В этом случае production-шаг был пропущен, а deploy для development выполнился.
 
 ![Deploy для ветки develop](images/10_develop_deploy.png)
 
 **Результат**
 
-В ходе лабораторной работы был настроен CI/CD-пайплайн с использованием GitHub Actions. При push в репозиторий Docker-образ автоматически собирается и публикуется в Docker Hub.
+В ходе работы был настроен CI/CD-пайплайн с помощью GitHub Actions.
 
-Дополнительно была создана ветка `develop` и настроен условный deploy в зависимости от ветки: для `main` выполняется deploy в production, а для `develop` — deploy в development.
+Теперь после push Docker-образ автоматически собирается и публикуется в Docker Hub.
+
+Дополнительно была настроена работа с двумя ветками: для main выполняется production deploy, а для develop — development deploy.
