@@ -14,20 +14,15 @@ Date of finished:
 
 **Цель работы**
 
-Настроить локальную систему мониторинга с использованием Prometheus для сбора метрик, Node Exporter для их получения и Grafana для визуализации данных.
+Разобраться с базовой настройкой системы мониторинга: запустить Prometheus и Node Exporter для сбора метрик, подключить Prometheus к Grafana и вывести основные показатели на дашборд.
 
 **Ход работы**
 
 **1. Настройка Prometheus**
 
-В папке `lab3/prometheus` был создан конфигурационный файл `prometheus.yml`.
+Сначала в папке lab3 была создана отдельная папка prometheus и файл prometheus.yml.
 
-В конфигурации был установлен интервал сбора метрик 15 секунд и добавлены два источника:
-
-- сам Prometheus;
-- Node Exporter.
-
-Использовалась следующая конфигурация:
+В конфигурации был задан интервал сбора метрик 15 секунд. Prometheus должен собирать данные с самого себя и с Node Exporter.
 
 ```yaml
 global:
@@ -43,15 +38,17 @@ scrape_configs:
       - targets: ['node-exporter:9100']
 ```
 
-**2. Запуск Node Exporter**
-
-Для взаимодействия контейнеров была создана Docker-сеть:
+Чтобы контейнеры могли обращаться друг к другу, была создана отдельная Docker-сеть:
 
 ```bash
 docker network create monitoring
 ```
 
-После этого был запущен контейнер Node Exporter:
+**2. Запуск Node Exporter**
+
+Дальше был запущен Node Exporter. Он нужен для получения системных метрик.
+
+Так как работа выполнялась на macOS через Docker Desktop, использовался вариант запуска без Linux-путей /proc, /sys и /rootfs.
 
 ```bash
 docker run -d \
@@ -62,27 +59,25 @@ docker run -d \
   prom/node-exporter
 ```
 
-Так как работа выполнялась на macOS с Docker Desktop, Node Exporter запускался без Linux-специфичных bind mount для `/proc`, `/sys` и `/rootfs`.
-
-Работа сервиса была проверена командой:
+После запуска работа Node Exporter была проверена командой:
 
 ```bash
 curl http://localhost:9100/metrics
 ```
 
-В ответ Node Exporter вернул набор системных метрик.
+В терминале появился большой список метрик, значит сервис успешно работает и отдаёт данные.
 
 ![Метрики Node Exporter](images/01_node_exporter_metrics.png)
 
 **3. Запуск Prometheus**
 
-Для хранения данных Prometheus был создан Docker volume:
+Для хранения данных Prometheus был создан отдельный volume:
 
 ```bash
 docker volume create prometheus-data
 ```
 
-После этого был запущен контейнер Prometheus:
+После этого был запущен сам Prometheus.
 
 ```bash
 docker run -d \
@@ -97,25 +92,31 @@ docker run -d \
   --storage.tsdb.path=/prometheus
 ```
 
-После запуска с помощью `docker ps` была проверена работа контейнеров Prometheus и Node Exporter.
+После запуска через docker ps было проверено, что Prometheus и Node Exporter работают одновременно.
 
-![Запущенные Prometheus и Node Exporter](images/02_prometheus_node_exporter_running.png)
+![Prometheus и Node Exporter](images/02_prometheus_node_exporter_running.png)
 
-В интерфейсе Prometheus на странице `Status → Target health` были проверены настроенные источники метрик.
+Далее был открыт интерфейс Prometheus в браузере.
 
-Оба target — `prometheus` и `node-exporter` — находились в состоянии `UP`.
+```text
+http://localhost:9090
+```
 
-![Prometheus Targets](images/03_prometheus_targets_up.png)
+На странице Target health были видны оба источника данных: Prometheus и Node Exporter. Оба находились в состоянии UP.
+
+![Проверка Targets в Prometheus](images/03_prometheus_targets_up.png)
 
 **4. Запуск Grafana**
 
-Для сохранения данных Grafana был создан отдельный volume:
+Следующим шагом была установлена Grafana.
+
+Для неё также был создан отдельный volume:
 
 ```bash
 docker volume create grafana-data
 ```
 
-Затем был запущен контейнер Grafana:
+После этого был запущен контейнер Grafana:
 
 ```bash
 docker run -d \
@@ -130,33 +131,39 @@ docker run -d \
 
 После запуска в системе одновременно работали три контейнера:
 
-- `grafana`;
-- `prometheus`;
-- `node-exporter`.
+- Grafana;
+- Prometheus;
+- Node Exporter.
 
-![Контейнеры системы мониторинга](images/04_all_monitoring_containers.png)
+![Запущенные контейнеры](images/04_all_monitoring_containers.png)
+
+Grafana была открыта в браузере по адресу:
+
+```text
+http://localhost:3000
+```
 
 **5. Подключение Prometheus к Grafana**
 
 В Grafana был добавлен новый источник данных Prometheus.
 
-В качестве адреса использовался:
+В качестве адреса был указан:
 
 ```text
 http://prometheus:9090
 ```
 
-Такой адрес используется потому, что Grafana и Prometheus находятся в одной Docker-сети `monitoring` и могут обращаться друг к другу по имени контейнера.
+Такой адрес используется потому, что Grafana и Prometheus находятся в одной Docker-сети и Grafana может обращаться к Prometheus по имени контейнера.
 
-После выполнения Save & test Grafana успешно подключилась к Prometheus.
+После нажатия Save & test соединение успешно установилось.
 
 ![Подключение Prometheus к Grafana](images/05_grafana_prometheus_datasource.png)
 
-**6. Создание dashboard**
+**6. Создание дашборда**
 
-В Grafana был создан dashboard System Monitoring.
+После подключения источника данных был создан дашборд System Monitoring.
 
-Для визуализации были добавлены три панели.
+На него были добавлены три графика: CPU, Memory и Disk.
 
 Для CPU использовалась метрика:
 
@@ -164,26 +171,24 @@ http://prometheus:9090
 node_cpu_seconds_total
 ```
 
-Для доступной оперативной памяти:
+Для памяти:
 
 ```text
 node_memory_MemAvailable_bytes
 ```
 
-Для доступного дискового пространства:
+Для диска:
 
 ```text
 node_filesystem_avail_bytes
 ```
 
-В результате был создан dashboard с графиками CPU, Memory и Disk.
+В результате получилось три графика с текущими данными системы.
 
-![Dashboard System Monitoring](images/06_grafana_dashboard.png)
+![Дашборд System Monitoring](images/06_grafana_dashboard.png)
 
 **Результат**
 
-В ходе лабораторной работы была настроена локальная система мониторинга на основе Prometheus, Node Exporter и Grafana.
+В ходе работы была настроена локальная система мониторинга с помощью Prometheus, Node Exporter и Grafana.
 
-Prometheus успешно получает метрики от Node Exporter, а Grafana использует Prometheus как источник данных и отображает собранные показатели на dashboard.
-
-Были настроены графики для мониторинга CPU, оперативной памяти и доступного дискового пространства.
+Prometheus успешно получает метрики от Node Exporter, а Grafana использует Prometheus как источник данных. На дашборде отображаются основные показатели системы: CPU, доступная память и свободное место на диске.
